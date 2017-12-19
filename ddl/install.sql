@@ -15,8 +15,8 @@ CREATE LIBRARY pivot AS :libfile;
 
 \t
 \o :tmpfile
-select 'CREATE TRANSFORM FUNCTION Pivot AS LANGUAGE ''C++'' NAME '''||obj_name||''' LIBRARY pivot /*not*/ fenced;' from user_library_manifest where lib_name='pivot' and obj_name like 'PivotFactory%';
-select 'CREATE TRANSFORM FUNCTION UnPivot AS LANGUAGE ''C++'' NAME '''||obj_name||''' LIBRARY pivot /*not*/ fenced;' from user_library_manifest where lib_name='pivot' and obj_name like 'UnPivotFactory%';
+select 'CREATE TRANSFORM FUNCTION '||replace(obj_name, 'Factory', '')||' AS LANGUAGE ''C++'' NAME '''||obj_name||''' LIBRARY pivot /*not*/ fenced;' from user_library_manifest where lib_name='pivot' and obj_type='Transform Function';
+select 'GRANT EXECUTE ON TRANSFORM FUNCTION '||replace(obj_name, 'Factory', '')||' () to PUBLIC;' from user_library_manifest where lib_name='pivot' and obj_type='Transform Function';
 
 \o
 \t

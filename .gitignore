@@ -2,3 +2,9 @@
 lib/
 testresult.txt
 
+# tmp files
+*.un~
+.DS_Store
+.vscode/
+
+
