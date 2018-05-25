@@ -9,6 +9,8 @@
 \echo
 \echo '******************************'
 \echo 'pivot with standard SQL ...'
+
+-- SUM
 select call_center_key, 
   sum(decode(d.date, '2003-01-01'::date, sales_dollar_amount)) as "2003-01-01", 
   sum(decode(d.date, '2003-01-02'::date, sales_dollar_amount)) as "2003-01-02", 
@@ -21,9 +23,28 @@ group by call_center_key
 order by 1 
 ;
 
+-- LAST
+select call_center_key, max("2003-01-01") as "2003-01-01", max("2003-01-02") as "2003-01-02", max("2003-01-03") as "2003-01-02"
+from (
+select call_center_key, 
+  decode(d.date, '2003-01-01'::date, sales_dollar_amount) as "2003-01-01", 
+  decode(d.date, '2003-01-02'::date, sales_dollar_amount) as "2003-01-02", 
+  decode(d.date, '2003-01-03'::date, sales_dollar_amount) as "2003-01-03",
+  row_number() over(partition by call_center_key, d.date order by pos_transaction_number desc)as rn
+from online_sales.online_sales_fact f 
+  inner join date_dimension d on f.sale_date_key = d.date_key 
+where d.date >= '2003-01-01' and d.date <= '2003-01-03' 
+  and call_center_key >= 1 and call_center_key <= 3
+  ) t
+where t.rn = 1
+group by call_center_key
+order by call_center_key 
+;
+
 \echo
 \echo '******************************'
 \echo 'pivot with UDTF ...'
+-- SUM
 select call_center_key, 
   pivot(d.date::varchar, sales_dollar_amount::int using parameters columnsFilter = '2003-01-01,2003-01-02,2003-01-03') over(partition by call_center_key) 
 from online_sales.online_sales_fact f 
@@ -31,6 +52,26 @@ from online_sales.online_sales_fact f
 where d.date >= '2003-01-01' and d.date <= '2003-01-03' 
   and call_center_key >= 1 and call_center_key <= 3 
 order by 1 
+;
+
+-- FIRST
+select call_center_key, 
+  pivot(d.date::varchar, sales_dollar_amount using parameters columnsFilter = '2003-01-01,2003-01-02,2003-01-03', separator = ',', method = 'FIRST') over(partition by call_center_key order by pos_transaction_number desc)
+from online_sales.online_sales_fact f 
+  inner join date_dimension d on f.sale_date_key = d.date_key 
+where d.date >= '2003-01-01' and d.date <= '2003-01-03' 
+  and call_center_key >= 1 and call_center_key <= 3 
+order by call_center_key 
+;
+
+-- LAST
+select call_center_key, 
+  pivot(d.date::varchar, sales_dollar_amount using parameters columnsFilter = '2003-01-01,2003-01-02,2003-01-03', separator = ',', method = 'LAST') over(partition by call_center_key order by pos_transaction_number)
+from online_sales.online_sales_fact f 
+  inner join date_dimension d on f.sale_date_key = d.date_key 
+where d.date >= '2003-01-01' and d.date <= '2003-01-03' 
+  and call_center_key >= 1 and call_center_key <= 3 
+order by call_center_key 
 ;
 
 select call_center_key, 

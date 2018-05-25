@@ -12,6 +12,11 @@ using namespace std;
 
 #define DEFAULT_separator ","
 
+// methods for measureValues calcuated
+#define methodSUM "SUM"
+#define methodFIRST "FIRST"
+#define methodLAST "LAST"
+#define DEFAULT_method methodSUM
 
 class Pivot : public TransformFunction
 {
@@ -19,6 +24,7 @@ private:
     VerticaType measureType;
 	int columnsCount;
     std::string* columnNames;
+    std::string method;
 
     // buffer for sum
     vint* measureIntPtr;
@@ -27,8 +33,8 @@ private:
     VNumeric** measureNumericPtrPtr;
 
 public:
-    Pivot(): measureType(VUnspecOID, 0), columnsCount(0), columnNames(NULL),
-             measureIntPtr(NULL), measureFloatPtr(NULL), measureNumericUInt64Ptr(NULL), measureNumericPtrPtr(NULL) 
+    Pivot(): measureType(VUnspecOID, 0), columnsCount(0), columnNames(NULL), method(DEFAULT_method)
+             , measureIntPtr(NULL), measureFloatPtr(NULL), measureNumericUInt64Ptr(NULL), measureNumericPtrPtr(NULL) 
     {
     }
 
@@ -48,6 +54,9 @@ public:
 
         // get parameters
         ParamReader paramReader = srvInterface.getParamReader();
+        if (paramReader.containsParameter("method"))
+            method = paramReader.getStringRef("method").str();
+            std::transform(method.begin(), method.end(), method.begin(), ::toupper);
         std::string separator = DEFAULT_separator;
         if (paramReader.containsParameter("separator"))
             separator = paramReader.getStringRef("separator").str();
@@ -128,6 +137,9 @@ public:
 
 
         // re-init buffer for sum
+        bool bColumnSet[columnsCount];
+        std::fill_n(bColumnSet, columnsCount, false);
+
         if (measureType.isInt())
             for(int idx = 0; idx < columnsCount; idx++) 
                 measureIntPtr[idx] = vint_null;
@@ -154,7 +166,16 @@ public:
                 if (measureType.isInt()) 
                 {
                     vint value = input_reader.getIntRef(1);
-                    if ( value != vint_null ) 
+                    if (!bColumnSet[idx] || (method == methodLAST)) 
+                    {
+                        measureIntPtr[idx] = value;
+                        bColumnSet[idx] = true;
+                    }
+                    else if ( method == methodFIRST )
+                    {
+                        // skip
+                    } 
+                    else if ( (method == methodSUM) && (value != vint_null) ) 
                     {
                         if (measureIntPtr[idx] == vint_null )
                             measureIntPtr[idx] = value;
@@ -165,7 +186,16 @@ public:
                 else if (measureType.isFloat()) 
                 {
                     vfloat value = input_reader.getFloatRef(1);
-                    if ( !vfloatIsNull(value) ) 
+                    if (!bColumnSet[idx] || (method == methodLAST)) 
+                    {
+                        measureFloatPtr[idx] = value;
+                        bColumnSet[idx] = true;
+                    }
+                    else if ( method == methodFIRST )
+                    {
+                        // skip
+                    } 
+                    else if ( (method == methodSUM) && (!vfloatIsNull(value)) ) 
                     {
                         if ( vfloatIsNull(measureFloatPtr[idx]) )
                             measureFloatPtr[idx] = value;
@@ -176,7 +206,16 @@ public:
                 else if (measureType.isNumeric()) 
                 {
                     const VNumeric* valuePtr = input_reader.getNumericPtr(1);
-                    if ( !valuePtr->isNull() ) 
+                    if (!bColumnSet[idx] || (method == methodLAST)) 
+                    {
+                        measureNumericPtrPtr[idx]->copy(valuePtr);
+                        bColumnSet[idx] = true;
+                    }
+                    else if ( method == methodFIRST )
+                    {
+                        // skip
+                    } 
+                    else if ( (method == methodSUM) && (!valuePtr->isNull()) ) 
                     {
                         if ( measureNumericPtrPtr[idx]->isNull() )
                             measureNumericPtrPtr[idx]->copy(valuePtr);
@@ -231,6 +270,10 @@ class PivotFactory : public TransformFunctionFactory
 
         // get parameters
         ParamReader paramReader = srvInterface.getParamReader();
+        std::string method = DEFAULT_method;
+        if (paramReader.containsParameter("method"))
+            method = paramReader.getStringRef("method").str();
+            std::transform(method.begin(), method.end(), method.begin(), ::toupper);
         std::string separator = DEFAULT_separator;
         if (paramReader.containsParameter("separator"))
             separator = paramReader.getStringRef("separator").str();
@@ -261,9 +304,10 @@ class PivotFactory : public TransformFunctionFactory
     // arguments and return types.
     virtual void getParameterType(ServerInterface &srvInterface, SizedColumnTypes &parameterTypes) 
     {
-        //parameter: separator string for columnNames, default value is ','.
         parameterTypes.addVarchar(255, "columnsFilter");
+        //parameter: separator string for columnNames, default value is ','.
         parameterTypes.addVarchar(1, "separator");
+        parameterTypes.addVarchar(10, "method");
     }
 
 
