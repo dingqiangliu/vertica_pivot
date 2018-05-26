@@ -1,0 +1,32 @@
+
+AUTOMAKE_OPTIONS = foreign
+ACLOCAL_AMFLAGS = -I m4
+
+
+lib_LTLIBRARIES = pivot.la
+pivot_la_SOURCES = src/pivot.cpp src/unpivot.cpp src/Vertica.cpp
+pivot_la_CXXFLAGS = -I$(SDK)/include 
+pivot_la_LDFLAGS = -module -avoid-version -shared -fPIC 
+
+
+src/Vertica.cpp:
+	cp -f $(SDK)/include/Vertica.cpp src/Vertica.cpp
+
+
+install: $(lib_LTLIBRARIES) ddl/install.sql
+	$(VSQL) -f ddl/install.sql
+
+
+uninstall: ddl/uninstall.sql
+	$(VSQL) -f ddl/uninstall.sql
+
+
+clean-local:
+	[ -f src/Vertica.cpp ] && rm -f src/Vertica.cpp || true
+	[ -f testresult.txt ] && rm -f testresult.txt || true
+
+
+# run examples
+run: $(PACKAGE_LIBNAME) install test/test.sql
+	$(VSQL) -f test/test.sql | tee testresult.txt
+
