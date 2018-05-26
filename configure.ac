@@ -13,8 +13,6 @@ AC_ENABLE_SHARED
 AC_DISABLE_STATIC
 LT_INIT
 
-AC_SUBST([SDK], [/opt/vertica/sdk])
-AC_SUBST([VSQL], [/opt/vertica/bin/vsql])
 
 # Checks for programs.
 AC_PROG_CXX
@@ -28,5 +26,49 @@ AC_CHECK_HEADER_STDBOOL
 # Checks for typedefs, structures, and compiler characteristics.
 
 # Checks for library functions.
+
+
+# option: enable-debug
+AC_ARG_ENABLE(debug,
+AS_HELP_STRING([--enable-debug],
+               [enable debugging, default: no]),
+[case "${enableval}" in
+             yes) debug=yes ;;
+             no)  debug=no ;;
+             *)   AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+esac],
+[debug=false])
+
+# Remove all optimization flags from CFLAGS
+changequote({,})
+CFLAGS=`echo "$CFLAGS" | $SED -e 's/-O[0-9s]*//g'`
+CXXFLAGS=`echo "$CXXFLAGS" | $SED -e 's/-O[0-9s]*//g'`
+
+CFLAGS=`echo "$CFLAGS" | $SED -e 's/-g[0-9]*//g'`
+CXXFLAGS=`echo "$CXXFLAGS" | $SED -e 's/-g[0-9]*//g'`
+changequote([,])
+
+echo "enable-debug=$debug"
+if test x"$debug" = x"yes" ; then
+  CFLAGS="$CFLAGS -g -O0"
+  CXXFLAGS="$CXXFLAGS -g -O0"
+else
+  CFLAGS="$CFLAGS -O2"
+  CXXFLAGS="$CXXFLAGS -O2"
+fi
+echo "CFLAGS=$CFLAGS"
+echo "CXXFLAGS=$CXXFLAGS"
+
+
+# set variables for makefile
+
+test -z "$SDK" && SDK=/opt/vertica/sdk
+AC_SUBST([SDK], $SDK)
+echo "SDK=$SDK"
+
+test -z "$VSQL" && VSQL=/opt/vertica/bin/vsql
+AC_SUBST([VSQL], $VSQL)
+echo "VSQL=$VSQL"
+
 
 AC_OUTPUT

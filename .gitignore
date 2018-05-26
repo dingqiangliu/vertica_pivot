@@ -8,6 +8,7 @@ testresult.txt
 
 src/Vertica.cpp
 m4/
+compile
 config.log
 config.status
 autom4te.cache/

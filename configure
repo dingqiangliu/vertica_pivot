@@ -636,6 +636,8 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
+VSQL
+SDK
 CXXCPP
 am__fastdepCXX_FALSE
 am__fastdepCXX_TRUE
@@ -643,8 +645,6 @@ CXXDEPMODE
 ac_ct_CXX
 CXXFLAGS
 CXX
-VSQL
-SDK
 CPP
 OTOOL64
 OTOOL
@@ -769,6 +769,7 @@ enable_dependency_tracking
 with_gnu_ld
 with_sysroot
 enable_libtool_lock
+enable_debug
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1412,6 +1413,7 @@ Optional Features:
   --disable-dependency-tracking
                           speeds up one-time build
   --disable-libtool-lock  avoid locking (might break parallel builds)
+  --enable-debug          enable debugging, default: no
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -7895,6 +7897,10 @@ _lt_linker_boilerplate=`cat conftest.err`
 $RM -r conftest*
 
 
+## CAVEAT EMPTOR:
+## There is no encapsulation within the following macros, do not change
+## the running order or otherwise move them around unless you know exactly
+## what you are doing...
 if test -n "$compiler"; then
 
 lt_prog_compiler_no_builtin_flag=
@@ -11438,10 +11444,6 @@ CC="$lt_save_CC"
 # Only expand once:
 
 
-
-SDK=/opt/vertica/sdk
-
-VSQL=/opt/vertica/bin/vsql
 
 
 # Checks for programs.
@@ -15129,6 +15131,54 @@ fi
 # Checks for typedefs, structures, and compiler characteristics.
 
 # Checks for library functions.
+
+
+# option: enable-debug
+# Check whether --enable-debug was given.
+if test "${enable_debug+set}" = set; then :
+  enableval=$enable_debug; case "${enableval}" in
+             yes) debug=yes ;;
+             no)  debug=no ;;
+             *)   as_fn_error $? "bad value ${enableval} for --enable-debug" "$LINENO" 5 ;;
+esac
+else
+  debug=false
+fi
+
+
+# Remove all optimization flags from CFLAGS
+
+CFLAGS=`echo "$CFLAGS" | $SED -e 's/-O[0-9s]*//g'`
+CXXFLAGS=`echo "$CXXFLAGS" | $SED -e 's/-O[0-9s]*//g'`
+
+CFLAGS=`echo "$CFLAGS" | $SED -e 's/-g[0-9]*//g'`
+CXXFLAGS=`echo "$CXXFLAGS" | $SED -e 's/-g[0-9]*//g'`
+
+
+echo "enable-debug=$debug"
+if test x"$debug" = x"yes" ; then
+  CFLAGS="$CFLAGS -g -O0"
+  CXXFLAGS="$CXXFLAGS -g -O0"
+else
+  CFLAGS="$CFLAGS -O2"
+  CXXFLAGS="$CXXFLAGS -O2"
+fi
+echo "CFLAGS=$CFLAGS"
+echo "CXXFLAGS=$CXXFLAGS"
+
+
+# set variables for makefile
+
+test -z "$SDK" && SDK=/opt/vertica/sdk
+SDK=$SDK
+
+echo "SDK=$SDK"
+
+test -z "$VSQL" && VSQL=/opt/vertica/bin/vsql
+VSQL=$VSQL
+
+echo "VSQL=$VSQL"
+
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure

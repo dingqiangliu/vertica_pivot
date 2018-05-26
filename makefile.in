@@ -80,10 +80,13 @@ build_triplet = @build@
 host_triplet = @host@
 subdir = .
 DIST_COMMON = $(srcdir)/makefile.in $(srcdir)/makefile.am \
-	$(top_srcdir)/configure $(am__configure_deps) depcomp \
+	$(top_srcdir)/configure $(am__configure_deps) depcomp compile \
 	config.guess config.sub install-sh missing ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -122,15 +125,14 @@ am__installdirs = "$(DESTDIR)$(libdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 pivot_la_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
-am_pivot_la_OBJECTS = src/pivot_la-pivot.lo src/pivot_la-unpivot.lo \
-	src/pivot_la-Vertica.lo
+am_pivot_la_OBJECTS = src/pivot.lo src/unpivot.lo src/Vertica.lo
 pivot_la_OBJECTS = $(am_pivot_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
 pivot_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(pivot_la_CXXFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
 	$(CXXFLAGS) $(pivot_la_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -334,9 +336,9 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I m4
+AM_CXXFLAGS = -I$(SDK)/include
 lib_LTLIBRARIES = pivot.la
 pivot_la_SOURCES = src/pivot.cpp src/unpivot.cpp src/Vertica.cpp
-pivot_la_CXXFLAGS = -I$(SDK)/include 
 pivot_la_LDFLAGS = -module -avoid-version -shared -fPIC 
 all: all-am
 
@@ -417,12 +419,9 @@ src/$(am__dirstamp):
 src/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/$(DEPDIR)
 	@: > src/$(DEPDIR)/$(am__dirstamp)
-src/pivot_la-pivot.lo: src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/pivot_la-unpivot.lo: src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/pivot_la-Vertica.lo: src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
+src/pivot.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/unpivot.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/Vertica.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 pivot.la: $(pivot_la_OBJECTS) $(pivot_la_DEPENDENCIES) $(EXTRA_pivot_la_DEPENDENCIES) 
 	$(AM_V_CXXLD)$(pivot_la_LINK) -rpath $(libdir) $(pivot_la_OBJECTS) $(pivot_la_LIBADD) $(LIBS)
@@ -435,9 +434,9 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/pivot_la-Vertica.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/pivot_la-pivot.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/pivot_la-unpivot.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/Vertica.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/pivot.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/unpivot.Plo@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -462,27 +461,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
-
-src/pivot_la-pivot.lo: src/pivot.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(pivot_la_CXXFLAGS) $(CXXFLAGS) -MT src/pivot_la-pivot.lo -MD -MP -MF src/$(DEPDIR)/pivot_la-pivot.Tpo -c -o src/pivot_la-pivot.lo `test -f 'src/pivot.cpp' || echo '$(srcdir)/'`src/pivot.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/pivot_la-pivot.Tpo src/$(DEPDIR)/pivot_la-pivot.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/pivot.cpp' object='src/pivot_la-pivot.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(pivot_la_CXXFLAGS) $(CXXFLAGS) -c -o src/pivot_la-pivot.lo `test -f 'src/pivot.cpp' || echo '$(srcdir)/'`src/pivot.cpp
-
-src/pivot_la-unpivot.lo: src/unpivot.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(pivot_la_CXXFLAGS) $(CXXFLAGS) -MT src/pivot_la-unpivot.lo -MD -MP -MF src/$(DEPDIR)/pivot_la-unpivot.Tpo -c -o src/pivot_la-unpivot.lo `test -f 'src/unpivot.cpp' || echo '$(srcdir)/'`src/unpivot.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/pivot_la-unpivot.Tpo src/$(DEPDIR)/pivot_la-unpivot.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/unpivot.cpp' object='src/pivot_la-unpivot.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(pivot_la_CXXFLAGS) $(CXXFLAGS) -c -o src/pivot_la-unpivot.lo `test -f 'src/unpivot.cpp' || echo '$(srcdir)/'`src/unpivot.cpp
-
-src/pivot_la-Vertica.lo: src/Vertica.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(pivot_la_CXXFLAGS) $(CXXFLAGS) -MT src/pivot_la-Vertica.lo -MD -MP -MF src/$(DEPDIR)/pivot_la-Vertica.Tpo -c -o src/pivot_la-Vertica.lo `test -f 'src/Vertica.cpp' || echo '$(srcdir)/'`src/Vertica.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/pivot_la-Vertica.Tpo src/$(DEPDIR)/pivot_la-Vertica.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/Vertica.cpp' object='src/pivot_la-Vertica.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(pivot_la_CXXFLAGS) $(CXXFLAGS) -c -o src/pivot_la-Vertica.lo `test -f 'src/Vertica.cpp' || echo '$(srcdir)/'`src/Vertica.cpp
 
 mostlyclean-libtool:
 	-rm -f *.lo
