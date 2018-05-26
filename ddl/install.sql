@@ -6,7 +6,7 @@
  */
 
 -- Step 1: Create LIBRARY 
-\set libfile '\''`pwd`'/lib/pivot.so\'';
+\set libfile '\''`pwd`'/.libs/pivot.so\'';
 CREATE LIBRARY pivot AS :libfile;
 
 -- Step 2: Create cube/rollup Factory
@@ -15,7 +15,7 @@ CREATE LIBRARY pivot AS :libfile;
 
 \t
 \o :tmpfile
-select 'CREATE TRANSFORM FUNCTION '||replace(obj_name, 'Factory', '')||' AS LANGUAGE ''C++'' NAME '''||obj_name||''' LIBRARY pivot /*not*/ fenced;' from user_library_manifest where lib_name='pivot' and obj_type='Transform Function';
+select 'CREATE TRANSFORM FUNCTION '||replace(obj_name, 'Factory', '')||' AS LANGUAGE ''C++'' NAME '''||obj_name||''' LIBRARY pivot not fenced;' from user_library_manifest where lib_name='pivot' and obj_type='Transform Function';
 select 'GRANT EXECUTE ON TRANSFORM FUNCTION '||replace(obj_name, 'Factory', '')||' () to PUBLIC;' from user_library_manifest where lib_name='pivot' and obj_type='Transform Function';
 
 \o

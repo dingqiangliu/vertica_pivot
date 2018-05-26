@@ -1,5 +1,4 @@
 ^%tmpfile
-lib/
 testresult.txt
 
 # tmp files
@@ -7,4 +6,15 @@ testresult.txt
 .DS_Store
 .vscode/
 
-
+src/Vertica.cpp
+m4/
+config.log
+config.status
+autom4te.cache/
+libtool
+makefile
+.libs/
+*.lo
+*.la
+.dirstamp
+.deps

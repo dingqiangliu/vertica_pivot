@@ -4,8 +4,10 @@
  *
  * Create Date: Dec 16, 2017
  */
+
 #include "Vertica.h"
 #include <sstream>
+#include <map>
 
 using namespace Vertica;
 using namespace std;
@@ -23,7 +25,7 @@ class Pivot : public TransformFunction
 private:
     VerticaType measureType;
 	int columnsCount;
-    std::string* columnNames;
+    std::map<std::string, int>* columnNames;
     std::string method;
 
     // buffer for sum
@@ -74,11 +76,11 @@ public:
         while (getline(ss, token, delim))
             columnsCount++;
 
-        columnNames = new std::string[columnsCount];
+        columnNames = new std::map<std::string, int>;
         istringstream ss2(columnsFilter);
         int idx = 0;
         while (getline(ss2, token, delim))
-            columnNames[idx++] = token;
+            (*columnNames)[token] = idx++;
 
         // init buffer for sum
         if (measureType.isInt())
@@ -98,7 +100,7 @@ public:
 	virtual void destroy (ServerInterface &srvInterface, const SizedColumnTypes &input_types){
         if( columnNames != NULL ) 
         {
-		    delete[] columnNames;
+		    delete columnNames;
 		    columnNames = NULL;
 	    }
 
@@ -153,12 +155,13 @@ public:
         // sum 2nd parameter group by 1st parameter in each partition, considering NULL.
         do {
             // group by on 1st parameter 
+            int idx;
             const VString& gby = input_reader.getStringRef(0);
-            int idx = 0;
-            for(idx = 0; idx < columnsCount; idx++) 
-                //srvInterface.log("DEBUG: %s.compare(%s)==%d", columnNames[idx].c_str(), gby.str().c_str(), columnNames[idx].compare(gby.str()));
-                if( columnNames[idx].compare(gby.str()) == 0 )
-                    break;
+            std::map<std::string, int>::iterator i = columnNames->find(gby.str());
+            if( i != columnNames->end() )
+                idx = i->second;
+            else
+                idx = columnsCount + 1;
 
             // sum on 2nd parameter 
             if(idx >= 0 and idx < columnsCount) 
@@ -226,7 +229,6 @@ public:
             }
 
         } while (input_reader.next());
-
 
         // output
         for(int idx = 0; idx < columnsCount; idx++) 
@@ -304,7 +306,7 @@ class PivotFactory : public TransformFunctionFactory
     // arguments and return types.
     virtual void getParameterType(ServerInterface &srvInterface, SizedColumnTypes &parameterTypes) 
     {
-        parameterTypes.addVarchar(255, "columnsFilter");
+        parameterTypes.addVarchar(65000, "columnsFilter");
         //parameter: separator string for columnNames, default value is ','.
         parameterTypes.addVarchar(1, "separator");
         parameterTypes.addVarchar(10, "method");

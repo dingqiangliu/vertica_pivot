@@ -199,10 +199,11 @@ Install, test and uninstall:
 ----------
 Befoe build and install, g++ should be available(yum -y groupinstall "Development tools" && yum -y groupinstall "Additional Development" can help on this).
 
- * Build: make
+ * Build: ./configure && make
  * Install: make install
  * Test: make run
- * Uninstall make uninstall
+ * Uninstall: make uninstall
+ * Clean: make distclean
 
 </body> </html>
 
