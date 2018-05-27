@@ -74,8 +74,9 @@ where d.date >= '2003-01-01' and d.date <= '2003-01-03'
 order by call_center_key 
 ;
 
+-- multiple measures
 select call_center_key, 
-  pivot(d.date::varchar, sales_dollar_amount::float using parameters columnsFilter = '2003-01-01,2003-01-02', separator = ',') over(partition by call_center_key)
+  pivot(d.date::varchar, sales_quantity::int, sales_dollar_amount::float using parameters columnsFilter = '2003-01-01,2003-01-02', separator = ',') over(partition by call_center_key)
 from online_sales.online_sales_fact f 
   inner join date_dimension d on f.sale_date_key = d.date_key 
 where d.date >= '2003-01-01' and d.date <= '2003-01-03' 
@@ -83,6 +84,17 @@ where d.date >= '2003-01-01' and d.date <= '2003-01-03'
 order by 1 
 ;
 
+-- less columns required than data
+select call_center_key, 
+  pivot(d.date::varchar, sales_dollar_amount::int using parameters columnsFilter = '2003-01-01,2003-01-02,2003-01-03') over(partition by call_center_key) 
+from online_sales.online_sales_fact f 
+  inner join date_dimension d on f.sale_date_key = d.date_key 
+where d.date >= '2003-01-01' and d.date <= '2003-01-03' 
+  and call_center_key >= 1 and call_center_key <= 3 
+order by 1 
+;
+
+-- more columns required than data
 select call_center_key, 
   pivot(d.date::varchar, sales_dollar_amount::numeric using parameters columnsFilter = '2003-01-01|2003-01-02|2003-01-03|2003-01-04', separator = '|') over(partition by call_center_key)
 from online_sales.online_sales_fact f 

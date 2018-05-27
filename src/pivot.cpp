@@ -23,36 +23,48 @@ using namespace std;
 class Pivot : public TransformFunction
 {
 private:
-    VerticaType measureType;
+    int measureCount;
+    // note: use VerticaType** except VerticaType*, because there is no default constructor of class VerticaType for convenient initializing array. 
+    VerticaType** measureTypePtrPtr;
 	int columnsCount;
     std::map<std::string, int>* columnNames;
     std::string method;
 
-    // buffer for SUM/FIRST/LAST operations
-    vint* measureIntPtr;
-    vfloat* measureFloatPtr;
-    uint64* measureNumericUInt64Ptr;
-    VNumeric** measureNumericPtrPtr;
+    // buffer for SUM/FIRST/LAST operations: vint/vfloat/VNumeric* [measureCount][columnsCount]
+    // note: use VNumeric* except VNumeric, because there is no default constructor of class VNumeric for convenient initializing array. 
+    void** measurePtrPtr;
 
 public:
-    Pivot(): measureType(VUnspecOID, 0), columnsCount(0), columnNames(NULL), method(DEFAULT_method)
-             , measureIntPtr(NULL), measureFloatPtr(NULL), measureNumericUInt64Ptr(NULL), measureNumericPtrPtr(NULL) 
+    Pivot(): measureCount(0), measureTypePtrPtr(NULL), columnsCount(0), columnNames(NULL), method(DEFAULT_method), measurePtrPtr(NULL)
     {
     }
 
 	virtual void setup (ServerInterface &srvInterface, const SizedColumnTypes &input_types)
     {
         // check arguments
-        if ( input_types.getColumnCount() != 2 ) 
-            vt_report_error(0, "There should be 2 arguments, but [%zu] arguments are provided!", input_types.getColumnCount());
+        measureCount = input_types.getColumnCount() - 1;
+        if ( measureCount < 1 ) 
+            vt_report_error(0, "There should be 2 or more arguments, but [%zu] arguments are provided!", input_types.getColumnCount());
 
         VerticaType columnsFilterType = input_types.getColumnType(0);
         if ( ! columnsFilterType.isStringType() )
             vt_report_error(0, "The 1st argument should be string, but type[%s] is provided!", columnsFilterType.getTypeStr());
 
-        measureType = input_types.getColumnType(1);
-        if ( !measureType.isInt() && !measureType.isFloat() && !measureType.isNumeric() ) 
-            vt_report_error(0, "The 1st argument should be int, float or numeric, but type[%s] is provided!", measureType.getTypeStr());
+        measureTypePtrPtr = new VerticaType*[measureCount];
+        for(int midx = 0; midx < measureCount; midx++)
+        {
+            measureTypePtrPtr[midx] = new VerticaType(VUnspecOID, 0);
+            (*measureTypePtrPtr[midx]) = input_types.getColumnType(midx+1);
+            if ( !(*measureTypePtrPtr[midx]).isInt() && !(*measureTypePtrPtr[midx]).isFloat() && !(*measureTypePtrPtr[midx]).isNumeric() ) 
+            {
+                for(; midx>=0; midx--)
+                    delete measureTypePtrPtr[midx];
+
+                delete[] measureTypePtrPtr;
+                measureTypePtrPtr = NULL;
+                vt_report_error(0, "The [%zu] argument should be int, float or numeric, but type[%s] is provided!", measureCount + 1, input_types.getColumnType(midx+1).getTypeStr());
+            }
+        }
 
         // get parameters
         ParamReader paramReader = srvInterface.getParamReader();
@@ -82,51 +94,64 @@ public:
         while (getline(ss2, token, delim))
             (*columnNames)[token] = idx++;
 
-        // init buffer for sum
-        if (measureType.isInt())
-            measureIntPtr = new vint[columnsCount];
-        else if (measureType.isFloat())
-            measureFloatPtr = new vfloat[columnsCount];
-        else if (measureType.isNumeric())
+        // allocate buffer
+        measurePtrPtr = new void*[measureCount];
+        for(int midx = 0; midx < measureCount; midx++)
         {
-            int wordsCount = (measureType.getNumericPrecision()+19)/19;
-            measureNumericUInt64Ptr = new uint64[wordsCount*columnsCount];
-            measureNumericPtrPtr = new VNumeric*[columnsCount];
-            for(int idx = 0; idx < columnsCount; idx++)
-                measureNumericPtrPtr[idx] = new VNumeric(measureNumericUInt64Ptr + wordsCount*idx, measureType.getNumericPrecision(), measureType.getNumericScale());
+            if ((*measureTypePtrPtr[midx]).isInt())
+                measurePtrPtr[midx] = (void *) new vint[columnsCount];
+            else if ((*measureTypePtrPtr[midx]).isFloat())
+                measurePtrPtr[midx] = (void *) new vfloat[columnsCount];
+            else if ((*measureTypePtrPtr[midx]).isNumeric())
+            {
+                int wordsCount = ((*measureTypePtrPtr[midx]).getNumericPrecision()+19)/19;
+                uint64* wordsPtr = new uint64[wordsCount*columnsCount];
+                measurePtrPtr[midx] = (void *) new VNumeric*[columnsCount];
+                for(int idx = 0; idx < columnsCount; idx++)
+                    ((VNumeric**)measurePtrPtr[midx])[idx] = new VNumeric(wordsPtr + wordsCount*idx, 
+                                (*measureTypePtrPtr[midx]).getNumericPrecision(), (*measureTypePtrPtr[midx]).getNumericScale());
+            }
         }
     }
 
 	virtual void destroy (ServerInterface &srvInterface, const SizedColumnTypes &input_types){
+        // free buffer
+        if (measurePtrPtr != NULL) 
+        {
+            for(int midx = 0; midx < measureCount; midx++)
+            {
+                if ((*measureTypePtrPtr[midx]).isInt())
+                    delete[] (vint*)measurePtrPtr[midx]; 
+                else if ((*measureTypePtrPtr[midx]).isFloat())
+                    delete[] (vfloat*)measurePtrPtr[midx]; 
+                else if ((*measureTypePtrPtr[midx]).isNumeric())
+                {
+                    uint64* wordsPtr = ((VNumeric**)measurePtrPtr[midx])[0]->words;
+
+                    for(int idx = 0; idx < columnsCount; idx++) 
+                        delete ((VNumeric**)measurePtrPtr[midx])[idx];
+                    delete[] (VNumeric**)measurePtrPtr[midx]; 
+
+                    delete[] wordsPtr;
+                }
+            }
+
+            measurePtrPtr = NULL;
+        }
+
         if( columnNames != NULL ) 
         {
 		    delete columnNames;
 		    columnNames = NULL;
 	    }
 
-        // free buffer for sum
-        if (measureIntPtr != NULL) 
+        if( measureTypePtrPtr != NULL )
         {
-            delete[] measureIntPtr; 
-            measureIntPtr = NULL;
-        }
-        if (measureFloatPtr != NULL) 
-        {
-            delete[] measureFloatPtr; 
-            measureFloatPtr = NULL;
-        }
-        
-        if (measureNumericPtrPtr != NULL) 
-        {
-            for(int idx = 0; idx < columnsCount; idx++) 
-                delete measureNumericPtrPtr[idx];
-            delete[] measureNumericPtrPtr; 
-            measureNumericPtrPtr = NULL;
-        }
-        if (measureNumericUInt64Ptr != NULL) 
-        {
-            delete [] measureNumericUInt64Ptr;
-            measureNumericUInt64Ptr = NULL;
+            for(int midx = 0; midx < measureCount; midx++)
+                delete measureTypePtrPtr[midx];
+            
+            delete[] measureTypePtrPtr;
+            measureTypePtrPtr = NULL;
         }
 	}
 
@@ -194,25 +219,25 @@ public:
                                   PartitionReader &input_reader,
                                   PartitionWriter &output_writer)
     {
-        if (input_reader.getNumCols() != 2)
-            vt_report_error(0, "Function need 2 arguments, but %zu provided", input_reader.getNumCols());
+        if (input_reader.getNumCols() != measureCount + 1)
+            vt_report_error(0, "Function need %zu arguments, but %zu provided", measureCount + 1, input_reader.getNumCols());
+        // re-init buffer
+        bool bColumnSet[measureCount][columnsCount];
+        for(int midx = 0; midx < measureCount; midx++)
+        {
+            std::fill_n(bColumnSet[midx], columnsCount, false);
+            if ((*measureTypePtrPtr[midx]).isInt())
+                for(int idx = 0; idx < columnsCount; idx++) 
+                    ((vint*)measurePtrPtr[midx])[idx] = vint_null;
+            else if ((*measureTypePtrPtr[midx]).isFloat())
+                for(int idx = 0; idx < columnsCount; idx++)
+                    ((vfloat*)measurePtrPtr[midx])[idx] = vfloat_null;
+            else if ((*measureTypePtrPtr[midx]).isNumeric())
+                for(int idx = 0; idx < columnsCount; idx++)
+                    ((VNumeric**)measurePtrPtr[midx])[idx]->setNull();
+        }
 
-
-        // re-init buffer for sum
-        bool bColumnSet[columnsCount];
-        std::fill_n(bColumnSet, columnsCount, false);
-
-        if (measureType.isInt())
-            for(int idx = 0; idx < columnsCount; idx++) 
-                measureIntPtr[idx] = vint_null;
-        else if (measureType.isFloat())
-            for(int idx = 0; idx < columnsCount; idx++)
-                measureFloatPtr[idx] = vfloat_null;
-        else if (measureType.isNumeric())
-            for(int idx = 0; idx < columnsCount; idx++)
-                measureNumericPtrPtr[idx]->setNull();
-
-        // sum 2nd parameter group by 1st parameter in each partition, considering NULL.
+        // SUM/FIRST/LAST operate on from 2nd parameter group by 1st parameter in each partition, considering NULL.
         do {
             // group by on 1st parameter 
             int idx;
@@ -223,15 +248,18 @@ public:
             else
                 idx = columnsCount + 1;
 
-            // sum on 2nd parameter 
+            // SUM/FIRST/LAST operate on from 2nd parameter 
             if(idx >= 0 and idx < columnsCount) 
             {
-                if (measureType.isInt()) 
-                    processValueInt(bColumnSet[idx], measureIntPtr[idx], input_reader.getIntRef(1));
-                else if (measureType.isFloat()) 
-                    processValueFloat(bColumnSet[idx], measureFloatPtr[idx], input_reader.getFloatRef(1));
-                else if (measureType.isNumeric()) 
-                    processValueNumeric(bColumnSet[idx], *(measureNumericPtrPtr[idx]), input_reader.getNumericPtr(1));
+                for(int midx = 0; midx < measureCount; midx++)
+                {
+                    if ((*measureTypePtrPtr[midx]).isInt()) 
+                        processValueInt(bColumnSet[midx][idx], ((vint*)measurePtrPtr[midx])[idx], input_reader.getIntRef(midx + 1));
+                    else if ((*measureTypePtrPtr[midx]).isFloat()) 
+                        processValueFloat(bColumnSet[midx][idx], ((vfloat*)measurePtrPtr[midx])[idx], input_reader.getFloatRef(midx + 1));
+                    else if ((*measureTypePtrPtr[midx]).isNumeric()) 
+                        processValueNumeric(bColumnSet[midx][idx], *(((VNumeric**)measurePtrPtr[midx])[idx]), input_reader.getNumericPtr(midx + 1));
+                }
             }
 
         } while (input_reader.next());
@@ -239,12 +267,15 @@ public:
         // output
         for(int idx = 0; idx < columnsCount; idx++) 
         {
-            if (measureType.isInt()) 
-                output_writer.setInt(idx, measureIntPtr[idx]);
-            else if (measureType.isFloat())
-                output_writer.setFloat(idx, measureFloatPtr[idx]);
-            else if (measureType.isNumeric()) 
-                output_writer.getNumericRef(idx).copy(measureNumericPtrPtr[idx]);
+            for(int midx = 0; midx < measureCount; midx++)
+            {
+                if ((*measureTypePtrPtr[midx]).isInt()) 
+                    output_writer.setInt(idx * measureCount + midx, ((vint*)measurePtrPtr[midx])[idx]);
+                else if ((*measureTypePtrPtr[midx]).isFloat())
+                    output_writer.setFloat(idx * measureCount + midx, ((vfloat*)measurePtrPtr[midx])[idx]);
+                else if ((*measureTypePtrPtr[midx]).isNumeric()) 
+                    output_writer.getNumericRef(idx * measureCount + midx).copy(((VNumeric**)measurePtrPtr[midx])[idx]);
+            }
         }
         output_writer.next();
     }
@@ -266,15 +297,28 @@ class PivotFactory : public TransformFunctionFactory
     virtual void getReturnType(ServerInterface &srvInterface, const SizedColumnTypes &input_types, SizedColumnTypes &output_types)
     {
         // check arguments
-        if ( input_types.getColumnCount() != 2 ) 
-            vt_report_error(0, "There should be 2 arguments, but [%zu] arguments are provided!", input_types.getColumnCount());
+        int measureCount = input_types.getColumnCount() - 1;
+        if ( measureCount < 1 ) 
+            vt_report_error(0, "There should be 2 or more arguments, but [%zu] arguments are provided!", input_types.getColumnCount());
         VerticaType columnsFilterType = input_types.getColumnType(0);
         if ( ! columnsFilterType.isStringType() )
             vt_report_error(0, "The 1st argument should be string, but type[%s] is provided!", columnsFilterType.getTypeStr());
 
-        VerticaType measureType = input_types.getColumnType(1);
-        if ( !measureType.isInt() && !measureType.isFloat() && !measureType.isNumeric() )
-            vt_report_error(0, "The 1st argument should be int, float or numeric, but type[%s] is provided!", measureType.getTypeStr());
+        VerticaType** measureTypePtrPtr = new VerticaType*[measureCount];
+        for(int midx = 0; midx < measureCount; midx++)
+        {
+            measureTypePtrPtr[midx] = new VerticaType(VUnspecOID, 0);
+            (*measureTypePtrPtr[midx]) = input_types.getColumnType(midx+1);
+            if ( !(*measureTypePtrPtr[midx]).isInt() && !(*measureTypePtrPtr[midx]).isFloat() && !(*measureTypePtrPtr[midx]).isNumeric() ) 
+            {
+                for(; midx>=0; midx--)
+                    delete measureTypePtrPtr[midx];
+
+                delete[] measureTypePtrPtr;
+                measureTypePtrPtr = NULL;
+                vt_report_error(0, "The [%zu] argument should be int, float or numeric, but type[%s] is provided!", measureCount + 1, input_types.getColumnType(midx+1).getTypeStr());
+            }
+        }
 
         // get parameters
         ParamReader paramReader = srvInterface.getParamReader();
@@ -297,14 +341,22 @@ class PivotFactory : public TransformFunctionFactory
         std::string token;
         while (getline(ss, token, delim)) 
         {
-          if (measureType.isInt())
-              output_types.addInt(token);
-          else if (measureType.isFloat())
-              output_types.addFloat(token);
-          else if (measureType.isNumeric())
-              output_types.addNumeric(measureType.getNumericPrecision(), measureType.getNumericScale(), token);
-          else
-              vt_report_error(0, "Unkown type of 2 arguments: %s !", measureType.getTypeStr());
+            for(int midx = 0; midx < measureCount; midx++)
+            {
+                std::stringstream columnName;
+                columnName << token;
+                if (midx > 0) 
+                    columnName << "_" << midx;
+
+                if ((*measureTypePtrPtr[midx]).isInt())
+                    output_types.addInt(columnName.str());
+                else if ((*measureTypePtrPtr[midx]).isFloat())
+                    output_types.addFloat(columnName.str());
+                else if ((*measureTypePtrPtr[midx]).isNumeric())
+                    output_types.addNumeric((*measureTypePtrPtr[midx]).getNumericPrecision(), (*measureTypePtrPtr[midx]).getNumericScale(), columnName.str());
+                else
+                    vt_report_error(0, "Unkown type of 2 arguments: %s !", (*measureTypePtrPtr[midx]).getTypeStr());
+            }
         }
     }
 

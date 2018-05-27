@@ -12,7 +12,8 @@ Syntax:
 Parameters:
 
  * measureName: string.
- * TODO: measureValue0~n: int/float/numeric.
+ * measureValue0: int/float/numeric, calcuated according method, and put on column names specified by columnsFilter.
+ * measureValue1~n: int/float/numeric, calcuated according method, and put on column names specified by columnsFilter but suffixed with "_1~n".
  * columnsFilter: keeping measure names.
  * separator: separator string for multiple mearue name, default value is ','.
  * method: measureValues calcuated method, such as SUM, FIRST, LAST, default value is 'SUM'.
@@ -131,6 +132,23 @@ Examples:
                    2 |        529 |        316 |        282
                    3 |        246 |        385 |        459
 (3 rows)
+
+
+    -- multiple measures
+    select call_center_key, 
+      pivot(d.date::varchar, sales_dollar_amount::int using parameters columnsFilter = '2003-01-01,2003-01-02,2003-01-03') over(partition by call_center_key) 
+    from online_sales.online_sales_fact f 
+      inner join date_dimension d on f.sale_date_key = d.date_key 
+    where d.date >= '2003-01-01' and d.date <= '2003-01-03' 
+      and call_center_key >= 1 and call_center_key <= 3 
+    order by 1 
+    ;
+     call_center_key | 2003-01-01 | 2003-01-01_1 | 2003-01-02 | 2003-01-02_1 
+    -----------------+------------+--------------+------------+--------------
+                   1 |         16 |         1123 |        112 |         6014
+                   2 |         56 |         3053 |        129 |         6646
+                   3 |         38 |         2732 |        125 |         6476
+    (3 rows)
 
 </code></pre>
 
