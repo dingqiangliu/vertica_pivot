@@ -28,7 +28,7 @@ private:
     std::map<std::string, int>* columnNames;
     std::string method;
 
-    // buffer for sum
+    // buffer for SUM/FIRST/LAST operations
     vint* measureIntPtr;
     vfloat* measureFloatPtr;
     uint64* measureNumericUInt64Ptr;
@@ -130,6 +130,66 @@ public:
         }
 	}
 
+    inline void processValueInt(bool &bColumnSet, vint &measure, const vint value)
+    {
+        if ( !bColumnSet || (method == methodLAST) ) 
+        {
+            measure = value;
+            bColumnSet = true;
+        }
+        else if ( method == methodFIRST )
+        {
+            // skip
+        } 
+        else if ( (method == methodSUM) && (value != vint_null) ) 
+        {
+            if  ( measure == vint_null )
+                measure = value;
+            else
+                measure += value;
+        }
+    }
+
+    inline void processValueFloat(bool &bColumnSet, vfloat &measure, const vfloat value)
+    {
+        if (!bColumnSet || (method == methodLAST)) 
+        {
+            measure = value;
+            bColumnSet = true;
+        }
+        else if ( method == methodFIRST )
+        {
+            // skip
+        } 
+        else if ( (method == methodSUM) && (!vfloatIsNull(value)) ) 
+        {
+            if ( vfloatIsNull(measure) )
+                measure = value;
+            else
+                measure += value;
+        }
+    }
+
+    inline void processValueNumeric(bool &bColumnSet, VNumeric &measure, const VNumeric *valuePtr)
+    {
+        if (!bColumnSet || (method == methodLAST)) 
+        {
+            measure.copy(valuePtr);
+            bColumnSet = true;
+        }
+        else if ( method == methodFIRST )
+        {
+            // skip
+        } 
+        else if ( (method == methodSUM) && (!valuePtr->isNull()) ) 
+        {
+            if ( measure.isNull() )
+                measure.copy(valuePtr);
+            else 
+                measure.accumulate(valuePtr);
+        }
+    }
+
     virtual void processPartition(ServerInterface &srvInterface,
                                   PartitionReader &input_reader,
                                   PartitionWriter &output_writer)
@@ -167,65 +227,11 @@ public:
             if(idx >= 0 and idx < columnsCount) 
             {
                 if (measureType.isInt()) 
-                {
-                    vint value = input_reader.getIntRef(1);
-                    if (!bColumnSet[idx] || (method == methodLAST)) 
-                    {
-                        measureIntPtr[idx] = value;
-                        bColumnSet[idx] = true;
-                    }
-                    else if ( method == methodFIRST )
-                    {
-                        // skip
-                    } 
-                    else if ( (method == methodSUM) && (value != vint_null) ) 
-                    {
-                        if (measureIntPtr[idx] == vint_null )
-                            measureIntPtr[idx] = value;
-                        else
-                            measureIntPtr[idx] += value;
-                    }
-                }
+                    processValueInt(bColumnSet[idx], measureIntPtr[idx], input_reader.getIntRef(1));
                 else if (measureType.isFloat()) 
-                {
-                    vfloat value = input_reader.getFloatRef(1);
-                    if (!bColumnSet[idx] || (method == methodLAST)) 
-                    {
-                        measureFloatPtr[idx] = value;
-                        bColumnSet[idx] = true;
-                    }
-                    else if ( method == methodFIRST )
-                    {
-                        // skip
-                    } 
-                    else if ( (method == methodSUM) && (!vfloatIsNull(value)) ) 
-                    {
-                        if ( vfloatIsNull(measureFloatPtr[idx]) )
-                            measureFloatPtr[idx] = value;
-                        else
-                            measureFloatPtr[idx] += value;
-                    }
-                }
+                    processValueFloat(bColumnSet[idx], measureFloatPtr[idx], input_reader.getFloatRef(1));
                 else if (measureType.isNumeric()) 
-                {
-                    const VNumeric* valuePtr = input_reader.getNumericPtr(1);
-                    if (!bColumnSet[idx] || (method == methodLAST)) 
-                    {
-                        measureNumericPtrPtr[idx]->copy(valuePtr);
-                        bColumnSet[idx] = true;
-                    }
-                    else if ( method == methodFIRST )
-                    {
-                        // skip
-                    } 
-                    else if ( (method == methodSUM) && (!valuePtr->isNull()) ) 
-                    {
-                        if ( measureNumericPtrPtr[idx]->isNull() )
-                            measureNumericPtrPtr[idx]->copy(valuePtr);
-                        else 
-                            measureNumericPtrPtr[idx]->accumulate(valuePtr);
-                    }
-                }
+                    processValueNumeric(bColumnSet[idx], *(measureNumericPtrPtr[idx]), input_reader.getNumericPtr(1));
             }
 
         } while (input_reader.next());
