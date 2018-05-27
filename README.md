@@ -13,7 +13,7 @@ Parameters:
 
  * measureName: string.
  * measureValue0: int/float/numeric, calcuated according method, and put on column names specified by columnsFilter.
- * measureValue1~n: int/float/numeric, calcuated according method, and put on column names specified by columnsFilter but suffixed with "_1~n".
+ * measureValue1-n: int/float/numeric, calcuated according method, and put on column names specified by columnsFilter but suffixed with "_1-n".
  * columnsFilter: keeping measure names.
  * separator: separator string for multiple mearue name, default value is ','.
  * method: measureValues calcuated method, such as SUM, FIRST, LAST, default value is 'SUM'.
