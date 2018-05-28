@@ -221,17 +221,16 @@ public:
     {
         if (input_reader.getNumCols() != measureCount + 1)
             vt_report_error(0, "Function need %zu arguments, but %zu provided", measureCount + 1, input_reader.getNumCols());
+
         // re-init buffer
         bool bColumnSet[measureCount][columnsCount];
         for(int midx = 0; midx < measureCount; midx++)
         {
             std::fill_n(bColumnSet[midx], columnsCount, false);
             if ((*measureTypePtrPtr[midx]).isInt())
-                for(int idx = 0; idx < columnsCount; idx++) 
-                    ((vint*)measurePtrPtr[midx])[idx] = vint_null;
+                std::fill_n((vint*)measurePtrPtr[midx], columnsCount, vint_null);
             else if ((*measureTypePtrPtr[midx]).isFloat())
-                for(int idx = 0; idx < columnsCount; idx++)
-                    ((vfloat*)measurePtrPtr[midx])[idx] = vfloat_null;
+                std::fill_n((vfloat*)measurePtrPtr[midx], columnsCount, vfloat_null);
             else if ((*measureTypePtrPtr[midx]).isNumeric())
                 for(int idx = 0; idx < columnsCount; idx++)
                     ((VNumeric**)measurePtrPtr[midx])[idx]->setNull();
@@ -265,18 +264,40 @@ public:
         } while (input_reader.next());
 
         // output
-        for(int idx = 0; idx < columnsCount; idx++) 
+        // note: loop hurt performance. Even just loop 1 time, running processPartition 500M times with 80 columns need more 2 seconds.
+        if (measureCount == 1)
         {
-            for(int midx = 0; midx < measureCount; midx++)
+            // note: pointer calculating also hurt performance. running processPartition 500M times with 80 columns need more 0.5 seconds.
+            const VerticaType& measureType = *measureTypePtrPtr[0];
+            const vint* measureIntPtr = (vint*)measurePtrPtr[0];
+            const vfloat* measureFloatPtr = (vfloat*)measurePtrPtr[0];
+            const VNumeric** measureNumPtrPtr = (const VNumeric**)measurePtrPtr[0];
+            for(int idx = 0; idx < columnsCount; idx++) 
             {
-                if ((*measureTypePtrPtr[midx]).isInt()) 
-                    output_writer.setInt(idx * measureCount + midx, ((vint*)measurePtrPtr[midx])[idx]);
-                else if ((*measureTypePtrPtr[midx]).isFloat())
-                    output_writer.setFloat(idx * measureCount + midx, ((vfloat*)measurePtrPtr[midx])[idx]);
-                else if ((*measureTypePtrPtr[midx]).isNumeric()) 
-                    output_writer.getNumericRef(idx * measureCount + midx).copy(((VNumeric**)measurePtrPtr[midx])[idx]);
+                if (measureType.isInt()) 
+                    output_writer.setInt(idx, measureIntPtr[idx]);
+                else if (measureType.isFloat())
+                    output_writer.setFloat(idx, measureFloatPtr[idx]);
+                else if (measureType.isNumeric()) 
+                    output_writer.getNumericRef(idx).copy(measureNumPtrPtr[idx]);
+            }
+         }
+        else
+        {
+            for(int idx = 0; idx < columnsCount; idx++) 
+            {
+                for(int midx = 0; midx < measureCount; midx++)
+                {
+                    if ((*measureTypePtrPtr[midx]).isInt()) 
+                        output_writer.setInt(idx * measureCount + midx, ((vint*)measurePtrPtr[midx])[idx]);
+                    else if ((*measureTypePtrPtr[midx]).isFloat())
+                        output_writer.setFloat(idx * measureCount + midx, ((vfloat*)measurePtrPtr[midx])[idx]);
+                    else if ((*measureTypePtrPtr[midx]).isNumeric()) 
+                        output_writer.getNumericRef(idx * measureCount + midx).copy(((VNumeric**)measurePtrPtr[midx])[idx]);
+                }
             }
         }
+
         output_writer.next();
     }
 };

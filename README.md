@@ -136,7 +136,7 @@ Examples:
 
     -- multiple measures
     select call_center_key, 
-      pivot(d.date::varchar, sales_dollar_amount::int using parameters columnsFilter = '2003-01-01,2003-01-02,2003-01-03') over(partition by call_center_key) 
+      pivot(d.date::varchar, sales_quantity::int, sales_dollar_amount::float using parameters columnsFilter = '2003-01-01,2003-01-02', separator = ',') over(partition by call_center_key)
     from online_sales.online_sales_fact f 
       inner join date_dimension d on f.sale_date_key = d.date_key 
     where d.date >= '2003-01-01' and d.date <= '2003-01-03' 
