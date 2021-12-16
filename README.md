@@ -217,8 +217,10 @@ Install, test and uninstall:
 ----------
 Befoe build and install, g++ should be available(yum -y groupinstall "Development tools" && yum -y groupinstall "Additional Development" can help on this).
 
- * Build: ./configure && make
-   Note: c++11 required since Vertica 9.3, so use "./configure CXXFLAGS='-std=c++11' && make"
+ * Build: autoreconf -f -i && ./configure && make
+   Note:
+   - c++11 required since Vertica 9.3, so use "autoreconf -f -i && ./configure CXXFLAGS='-std=c++11' && make"
+   - `D_GLIBCXX_USE_CXX11_ABI=0 required since Vertica 10.x, so use "autoreconf -f -i && ./configure CXXFLAGS='-std=c++11 -D_GLIBCXX_USE_CXX11_ABI=0' && make"`
  * Install: make install
  * Test: make run
  * Uninstall: make uninstall
