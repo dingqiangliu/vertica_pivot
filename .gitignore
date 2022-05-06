@@ -1,21 +1,5 @@
-^%tmpfile
-testresult.txt
-
 # tmp files
 *.un~
 .DS_Store
 .vscode/
-
-src/Vertica.cpp
-m4/
-compile
-config.log
-config.status
-autom4te.cache/
-libtool
-makefile
-.libs/
-*.lo
-*.la
-.dirstamp
-.deps
+testresult.txt

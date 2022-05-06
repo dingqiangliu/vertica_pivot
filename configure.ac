@@ -39,7 +39,7 @@ AS_HELP_STRING([--enable-debug],
 esac],
 [debug=false])
 
-# Remove all optimization flags from CFLAGS
+# Remove all optimization flags from CFLAGS & CXXFLAGS
 changequote({,})
 CFLAGS=`echo "$CFLAGS" | $SED -e 's/-O[0-9s]*//g'`
 CXXFLAGS=`echo "$CXXFLAGS" | $SED -e 's/-O[0-9s]*//g'`
@@ -56,6 +56,17 @@ else
   CFLAGS="$CFLAGS -O2"
   CXXFLAGS="$CXXFLAGS -O2"
 fi
+
+echo "set compile tag for Vertica 9+"
+test -f /opt/vertica/sdk/include/BuildInfo.h \
+  && test 9 -le "$(grep -E '#define\sVERTICA_BUILD_ID_SDK_Version_Major' /opt/vertica/sdk/include/BuildInfo.h | awk '{print $3}')" \
+  && CXXFLAGS="$CXXFLAGS -std=c++11"
+
+echo "set compile tag for Vertica 10+"
+test -f /opt/vertica/sdk/include/BuildInfo.h \
+  && test 10 -le "$(grep -E '#define\sVERTICA_BUILD_ID_SDK_Version_Major' /opt/vertica/sdk/include/BuildInfo.h | awk '{print $3}')" \
+  && CXXFLAGS="$CXXFLAGS -D_GLIBCXX_USE_CXX11_ABI=0"
+
 echo "CFLAGS=$CFLAGS"
 echo "CXXFLAGS=$CXXFLAGS"
 
