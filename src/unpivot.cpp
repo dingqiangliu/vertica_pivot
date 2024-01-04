@@ -105,6 +105,10 @@ public:
                 {
                     output_writer.setFloat(1, input_reader.getFloatRef(idx));
                 }
+                else if (measureType.isDate())
+                {
+                    output_writer.setDate(1, input_reader.getDateRef(idx));
+                }
                 else if (measureType.isNumeric()) 
                 {
                     output_writer.getNumericRef(1).copy(input_reader.getNumericPtr(idx));
@@ -170,6 +174,8 @@ class UnPivotFactory : public TransformFunctionFactory
             output_types.addInt("meaureValue");
         else if (measureType.isFloat()) 
             output_types.addFloat("meaureValue");
+        else if (measureType.isDate())
+            output_types.addDate("meaureValue");
         else if (measureType.isNumeric()) 
             output_types.addNumeric(measureType.getNumericPrecision(), measureType.getNumericScale(), "meaureValue");
         else

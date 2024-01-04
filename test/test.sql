@@ -155,3 +155,7 @@ group by call_center_key
 order by 1, 2
 ;
 
+-- for date type
+select key, unpivot(SJ1, SJ2 using parameters measureNames='SJ1|SJ2', separator ='|') over(partition by key)
+from (select 1 key, '2024-01-01'::date SJ1, '2024-01-02'::date SJ2 from dual) t
+order by 1, 2;

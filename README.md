@@ -21,7 +21,7 @@ This is a Vertica User Defined Functions (UDF) for Pivot/Unpivot, similar as Ora
 
    ***Parameters:***
 
-   * measureValue: int/float/numeric.
+   * measureValue: int/float/numeric/date.
    * measureNames: measure names, one meaure name for a mesure value column .
    * separator: separator string for concatenating, default value is ','.
    * (return): convert columns to rows, all measureValue show in same column "measureValue" but with different "measureName". 
