@@ -63,9 +63,13 @@ test -f /opt/vertica/sdk/include/BuildInfo.h \
   && CXXFLAGS="$CXXFLAGS -std=c++11"
 
 echo "set compile tag for Vertica 10+"
-test -f /opt/vertica/sdk/include/BuildInfo.h \
-  && test 10 -le "$(grep -E '#define\sVERTICA_BUILD_ID_SDK_Version_Major' /opt/vertica/sdk/include/BuildInfo.h | awk '{print $3}')" \
-  && CXXFLAGS="$CXXFLAGS -D_GLIBCXX_USE_CXX11_ABI=0"
+if test -f $SDK/include/BuildInfo.h ; then
+  if test 24 -le "$(grep -E '#define\sVERTICA_BUILD_ID_SDK_Version_Major' $SDK/include/BuildInfo.h | awk '{print $3}')" ; then
+    CXXFLAGS="$CXXFLAGS -D_GLIBCXX_USE_CXX11_ABI=1"
+  elif test 10 -le "$(grep -E '#define\sVERTICA_BUILD_ID_SDK_Version_Major' $SDK/include/BuildInfo.h | awk '{print $3}')" ; then
+    CXXFLAGS="$CXXFLAGS -D_GLIBCXX_USE_CXX11_ABI=0"
+  fi
+fi
 
 echo "CFLAGS=$CFLAGS"
 echo "CXXFLAGS=$CXXFLAGS"
